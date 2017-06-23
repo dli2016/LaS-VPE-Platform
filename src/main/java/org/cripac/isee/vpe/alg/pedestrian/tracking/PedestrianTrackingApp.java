@@ -27,6 +27,7 @@ import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.Function0;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.cripac.isee.alg.pedestrian.tracking.BasicTracker;
+import org.cripac.isee.alg.pedestrian.tracking.SSDTracker;
 import org.cripac.isee.alg.pedestrian.tracking.Tracker;
 import org.cripac.isee.alg.pedestrian.tracking.Tracklet;
 import org.cripac.isee.vpe.common.*;
@@ -43,8 +44,13 @@ import javax.annotation.Nonnull;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.BufferedInputStream;
 import java.io.InputStream;
+import java.io.File;
 import java.net.URISyntaxException;
 import java.util.*;
+
+// Add by da.li on 2017/06/06
+import static org.cripac.isee.util.ResourceManager.getResource;
+// End
 
 /**
  * The PedestrianTrackingApp class takes in video URLs from Kafka, then process
@@ -93,6 +99,11 @@ public class PedestrianTrackingApp extends SparkStreamingApp {
         private static final long serialVersionUID = -786439769732467646L;
 
         int numSamplesPerTracklet = -1;
+        // Add by da.li on 2017/06/06 for ssd tracker:
+        public int trackerMethod = 0; 
+        // public int gpuID = -1;
+        public float confidenceThreshold = 0.5f;
+        // End
 
         public AppPropertyCenter(@Nonnull String[] args)
                 throws SAXException, ParserConfigurationException, URISyntaxException {
@@ -103,6 +114,12 @@ public class PedestrianTrackingApp extends SparkStreamingApp {
                     case "vpe.num.sample.per.tracklet":
                         numSamplesPerTracklet = Integer.valueOf((String) entry.getValue());
                         break;
+                    case "tracker.method":
+                        trackerMethod = Integer.valueOf((String) entry.getValue());
+                        break;
+                    //case "tracker.gpuID":
+                    //    gpuID = Integer.valueOf((String) entry.getValue());
+                    //    break;
                     default:
                         logger.warn("Unrecognized option: " + entry.getKey());
                         break;
@@ -131,12 +148,30 @@ public class PedestrianTrackingApp extends SparkStreamingApp {
         private final int numSamplesPerTracklet;
         private final String metadataDir;
 
+        // Add by da.li on 2017/06/06
+        // private final int gpuID;
+        private final String caffeGPU;
+        private final int trackerMethod;
+        private final float confidenceThreshold;
+        //private final File pbFile;
+        //private final File modelFile;
+        // End
+
         public HDFSVideoTrackingStream(AppPropertyCenter propCenter) throws Exception {
             super(APP_NAME, propCenter);
 
             numSamplesPerTracklet = propCenter.numSamplesPerTracklet;
             metadataDir = propCenter.metadataDir;
             confCacheSingleton = new Singleton<>(ConfCache::new, ConfCache.class);
+
+            // Add by da.li on 2017/06/06
+            // gpuID = propCenter.gpuID;
+            caffeGPU = propCenter.caffeGPU;
+            trackerMethod = propCenter.trackerMethod;
+            confidenceThreshold = propCenter.confidenceThreshold;
+            //pbFile = getResource("/models/SSDCaffe/deploy.prototxt");
+            //modelFile = getResource("/models/SSDCaffe/deploy.caffemodel");
+            // End
         }
 
         /**
@@ -202,7 +237,27 @@ public class PedestrianTrackingApp extends SparkStreamingApp {
                                         logger.fatal("confPool contains key " + confFile + " but value is null!");
                                         return;
                                     }
-                                    final Tracker tracker = new BasicTracker(confBytes, logger);
+
+                                    // Modified by da.li on 2017/06/06
+                                    final Tracker tracker;
+                                    if (trackerMethod == 0) { // Motion Detection.
+                                        tracker = new BasicTracker(confBytes, logger);
+                                    } else if (trackerMethod == 1) { // SSD
+                                        File pbFile = getResource("/models/SSDCaffe/deploy.prototxt");
+                                        File modelFile = getResource("/models/SSDCaffe/deploy.caffemodel");
+                                        tracker = new SSDTracker(confBytes,
+                                                                 caffeGPU,
+                                                                 confidenceThreshold,
+                                                                 pbFile,
+                                                                 modelFile,
+                                                                 logger);
+                                    } else {
+                                        logger.fatal("BAD tracking method!");
+                                        return;
+                                    }
+                                    // End
+                                    
+                                    //final Tracker tracker = new BasicTracker(confBytes, logger);
 
                                     final FileSystem hdfs = HDFSFactory.newInstance();
 

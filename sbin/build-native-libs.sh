@@ -26,6 +26,10 @@ CAFFE2_INSTALL_HOME=/home/${USER}
 echo "Building ISEE-Basic-Pedestrian-Tracker..."
 source ${PROJECT_PATH}/sbin/native/build-basic-tracker.sh
 
+# Build ISEE-SSD-Pedestrian-Tracker
+echo "Buidling ISEE-SSD-Pedestrian-Tracker..."
+source $(PROJECT_PATH)/sbin/native/build-ssd-tracker.sh
+
 # Build Caffe
 echo "Building Caffe2..."
 source ${PROJECT_PATH}/sbin/native/build-caffe2.sh
