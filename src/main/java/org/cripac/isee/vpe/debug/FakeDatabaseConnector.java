@@ -18,6 +18,7 @@
 package org.cripac.isee.vpe.debug;
 
 import org.cripac.isee.alg.pedestrian.attr.Attributes;
+import org.cripac.isee.alg.pedestrian.reid.Feature;
 import org.cripac.isee.vpe.data.GraphDatabaseConnector;
 
 import javax.annotation.Nonnull;
@@ -90,6 +91,15 @@ public class FakeDatabaseConnector extends GraphDatabaseConnector {
     @Override
     public void setPedestrianAttributes(@Nonnull String nodeID,
                                         @Nonnull Attributes attr) {
+    }
+
+    /**
+     * Fake: set extracted reid features.
+     * Add by da.li on 2017/06/23
+     */
+    @Override
+    public void setPedestrianReIDFeature(@Nonnull String nodeID,
+                                         @Nonnull Feature fea) {
     }
 
     /*

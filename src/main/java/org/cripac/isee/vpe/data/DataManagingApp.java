@@ -32,6 +32,7 @@ import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
 import org.cripac.isee.alg.pedestrian.attr.Attributes;
+import org.cripac.isee.alg.pedestrian.reid.Feature;
 import org.cripac.isee.alg.pedestrian.tracking.Tracklet;
 import org.cripac.isee.vpe.alg.pedestrian.tracking.TrackletOrURL;
 import org.cripac.isee.vpe.common.*;
@@ -532,6 +533,54 @@ public class DataManagingApp extends SparkStreamingApp {
         @Override
         public List<Port> getPorts() {
             return Collections.singletonList(PED_ATTR_SAVING_PORT);
+        }
+    }
+
+    /**
+     * Class: ReidFeatureSavingStream
+     * Add by da.li on 2017/06/23 for saving extracted features.
+     */
+    public static class ReidFeatureSavingStream extends Stream {
+        public static final String NAME = "reid-feature-saving";
+        public static final DataType OUTPUT_TYPE = DataType.NONE;
+        public static final Port PED_REID_FEATURE_SAVING_PORT =
+            new Port("pedestrian-reid-feature-saving", DataType.REID_FEATURE);
+        private final Singleton<GraphDatabaseConnector> dbConnSingleton;
+        private static final long serialVersionUID = 3468177053696762940L;
+
+        public ReidFeatureSavingStream(@Nonnull AppPropertyCenter propCenter) throws Exception {
+            super(APP_NAME, propCenter);
+
+            dbConnSingleton = new Singleton<>(FakeDatabaseConnector::new, FakeDatabaseConnector.class);
+        }
+
+        @Override
+        public void addToGlobalStream(Map<DataType, JavaPairDStream<UUID, TaskData>> globalStreamMap) {
+            this.filter(globalStreamMap, PED_REID_FEATURE_SAVING_PORT)
+                .foreachRDD(rdd -> rdd.foreachPartition(kvIter -> {
+                synchronized (ReidFeatureSavingStream.class) {
+                    final Logger logger = loggerSingleton.getInst();
+                    ParallelExecutor.execute(kvIter, res -> {
+                        try {
+                            final TaskData taskData = res._2();
+                            final Feature fea = (Feature) taskData.predecessorRes;
+                            logger.debug("Received " + res._1() + ": " + fea.trackletID.toString());
+                            // TODO: insert the recieved reid feature to db.
+                            new RobustExecutor<Void, Void>(() ->
+                                dbConnSingleton.getInst().setPedestrianReIDFeature(fea.trackletID.toString(), fea)
+                            ).execute();
+                            logger.debug("Saved " + res._1() + ": " + fea.trackletID.toString());
+                        } catch(Exception e) {
+                            logger.error("When decompressing reid feature", e);
+                        }
+                    });
+                }
+            }));
+        }
+
+        @Override
+        public List<Port> getPorts() {
+            return Collections.singletonList(PED_REID_FEATURE_SAVING_PORT);
         }
     }
 

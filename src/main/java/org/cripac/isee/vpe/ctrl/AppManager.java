@@ -20,6 +20,7 @@ package org.cripac.isee.vpe.ctrl;
 import org.cripac.isee.vpe.alg.pedestrian.attr.PedestrianAttrRecogApp;
 import org.cripac.isee.vpe.alg.pedestrian.reid.PedestrianReIDUsingAttrApp;
 import org.cripac.isee.vpe.alg.pedestrian.tracking.PedestrianTrackingApp;
+import org.cripac.isee.vpe.alg.pedestrian.reid.PedestrianReIDFeatureExtractionApp;
 import org.cripac.isee.vpe.data.DataManagingApp;
 
 import javax.annotation.Nonnull;
@@ -34,6 +35,7 @@ public class AppManager {
     private static Map<String, String> classNameMap = new HashMap<>();
 
     static {
+        classNameMap.put(PedestrianReIDFeatureExtractionApp.APP_NAME, PedestrianReIDFeatureExtractionApp.class.getName());
         classNameMap.put(PedestrianReIDUsingAttrApp.APP_NAME, PedestrianReIDUsingAttrApp.class.getName());
         classNameMap.put(PedestrianTrackingApp.APP_NAME, PedestrianTrackingApp.class.getName());
         classNameMap.put(PedestrianAttrRecogApp.APP_NAME, PedestrianAttrRecogApp.class.getName());

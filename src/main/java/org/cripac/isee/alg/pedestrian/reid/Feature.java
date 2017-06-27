@@ -18,18 +18,27 @@
 /*
  * Feature.java
  *
- *  Created on: Sep 22, 2016
- *      Author: ken
+ *   Created on: Sep 22, 2016
+ *       Author: ken
+ *  Modified on: Jun 22, 2017 (da.li)
  */
 
 package org.cripac.isee.alg.pedestrian.reid;
+
+import org.cripac.isee.alg.pedestrian.tracking.Tracklet;
+import java.io.Serializable;
 
 /**
  * Base class for features of different lengths.
  *
  * @author Ken Yu, CRIPAC, 2016
  */
-public abstract class Feature {
+public abstract class Feature implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    public Tracklet.Identifier trackletID;
+
     /**
      * @return The length of the feature.
      */

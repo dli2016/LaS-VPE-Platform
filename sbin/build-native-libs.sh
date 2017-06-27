@@ -30,6 +30,10 @@ source ${PROJECT_PATH}/sbin/native/build-basic-tracker.sh
 echo "Buidling ISEE-SSD-Pedestrian-Tracker..."
 source $(PROJECT_PATH)/sbin/native/build-ssd-tracker.sh
 
+# Build ISEE-MSCAN-ReID
+echo "Buidling ISEE-MSCAN-ReID..."
+source $(PROJECT_PATH)/sbin/native/build-mscan-reid.sh
+
 # Build Caffe
 echo "Building Caffe2..."
 source ${PROJECT_PATH}/sbin/native/build-caffe2.sh

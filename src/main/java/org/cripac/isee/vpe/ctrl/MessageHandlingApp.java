@@ -27,6 +27,7 @@ import org.cripac.isee.alg.pedestrian.reid.PedestrianInfo;
 import org.cripac.isee.alg.pedestrian.tracking.Tracklet;
 import org.cripac.isee.vpe.alg.pedestrian.attr.PedestrianAttrRecogApp;
 import org.cripac.isee.vpe.alg.pedestrian.reid.PedestrianReIDUsingAttrApp;
+import org.cripac.isee.vpe.alg.pedestrian.reid.PedestrianReIDFeatureExtractionApp;
 import org.cripac.isee.vpe.alg.pedestrian.tracking.PedestrianTrackingApp;
 import org.cripac.isee.vpe.alg.pedestrian.tracking.PedestrianTrackingApp.HDFSVideoTrackingStream;
 import org.cripac.isee.vpe.alg.pedestrian.tracking.TrackletOrURL;
@@ -113,10 +114,12 @@ public class MessageHandlingApp extends SparkStreamingApp {
     public static class CommandType {
         public final static String TRACK_ONLY = "track";
         public final static String TRACK_ATTRRECOG = "track-attrrecog";
+        public final static String TRACK_REID= "track-reid";
         public final static String ATTRRECOG_ONLY = "attrrecog";
         public final static String REID_ONLY = "reid";
         public final static String ATTRRECOG_REID = "attrrecog-reid";
         public final static String TRACK_ATTRRECOG_REID = "track-attrrecog-reid";
+        public final static String TRACK_ATTRRECOG_REIDFEATURE = "track-attrrecog-reidfeature";
         public final static String RT_TRACK_ONLY = "rttrack";
         public final static String RT_TRACK_ATTRRECOG_REID = "rt-track-attrrecog-reid";
 
@@ -211,6 +214,34 @@ public class MessageHandlingApp extends SparkStreamingApp {
                 });
                 break;
             }
+            case CommandType.TRACK_REID: {
+                ExecutionPlan.Node trackingNode = plan.addNode(
+                    PedestrianTrackingApp.HDFSVideoTrackingStream.OUTPUT_TYPE,
+                    param.get(Parameter.TRACKING_CONF_FILE));
+                ExecutionPlan.Node reidFeatureExtractNode = plan.addNode(
+                    PedestrianReIDFeatureExtractionApp.ReIDFeatureExtractionStream.OUTPUT_TYPE);
+                ExecutionPlan.Node trackletSavingNode = plan.addNode(
+                    DataManagingApp.TrackletSavingStream.OUTPUT_TYPE);
+                ExecutionPlan.Node reidFeatureSavingNode = plan.addNode(
+                    DataManagingApp.ReidFeatureSavingStream.OUTPUT_TYPE);
+
+                trackingNode.outputTo(reidFeatureExtractNode.createInputPort(
+                    PedestrianReIDFeatureExtractionApp.ReIDFeatureExtractionStream.TRACKLET_PORT));
+                trackingNode.outputTo(trackletSavingNode.createInputPort(
+                    DataManagingApp.TrackletSavingStream.PED_TRACKLET_SAVING_PORT));
+                reidFeatureExtractNode.outputTo(reidFeatureSavingNode.createInputPort(
+                    DataManagingApp.ReidFeatureSavingStream.PED_REID_FEATURE_SAVING_PORT));
+
+                videoPaths.forEach(path-> {
+                    final String taskID = UUID.randomUUID().toString();
+                    final TaskData taskData = new TaskData(
+                            trackingNode.createInputPort(HDFSVideoTrackingStream.VIDEO_URL_PORT),
+                            plan,
+                            path.toString());
+                    sendWithLog(taskID, taskData, producer, logger);
+                });
+                break;
+            }
             case CommandType.TRACK_ATTRRECOG_REID: {
                 ExecutionPlan.Node trackingNode = plan.addNode(
                         HDFSVideoTrackingStream.OUTPUT_TYPE,
@@ -233,6 +264,42 @@ public class MessageHandlingApp extends SparkStreamingApp {
                         DataManagingApp.AttrSavingStream.PED_ATTR_SAVING_PORT));
                 reidNode.outputTo(idRankSavingNode.createInputPort(
                         DataManagingApp.IDRankSavingStream.PED_IDRANK_SAVING_PORT));
+
+                videoPaths.forEach(path -> {
+                    final String taskID = UUID.randomUUID().toString();
+                    final TaskData taskData = new TaskData(
+                            trackingNode.createInputPort(HDFSVideoTrackingStream.VIDEO_URL_PORT),
+                            plan,
+                            path.toString());
+                    sendWithLog(taskID, taskData, producer, logger);
+                });
+                break;
+            }
+            case CommandType.TRACK_ATTRRECOG_REIDFEATURE: {
+                ExecutionPlan.Node trackingNode = plan.addNode(
+                    HDFSVideoTrackingStream.OUTPUT_TYPE,
+                    param.get(Parameter.TRACKING_CONF_FILE));
+                ExecutionPlan.Node attrRecogNode = plan.addNode(
+                    PedestrianAttrRecogApp.RecogStream.OUTPUT_TYPE);
+                ExecutionPlan.Node reidFeatureExtractNode = plan.addNode(
+                    PedestrianReIDFeatureExtractionApp.ReIDFeatureExtractionStream.OUTPUT_TYPE);
+                ExecutionPlan.Node trackletSavingNode = plan.addNode(
+                    DataManagingApp.TrackletSavingStream.OUTPUT_TYPE);
+                ExecutionPlan.Node attrSavingNode = plan.addNode(
+                    DataManagingApp.AttrSavingStream.OUTPUT_TYPE);
+                ExecutionPlan.Node reidFeatureSavingNode = plan.addNode(
+                    DataManagingApp.ReidFeatureSavingStream.OUTPUT_TYPE);
+
+                trackingNode.outputTo(attrRecogNode.createInputPort(
+                    PedestrianAttrRecogApp.RecogStream.TRACKLET_PORT));
+                trackingNode.outputTo(reidFeatureExtractNode.createInputPort(
+                    PedestrianReIDFeatureExtractionApp.ReIDFeatureExtractionStream.TRACKLET_PORT));
+                trackingNode.outputTo(trackletSavingNode.createInputPort(
+                    DataManagingApp.TrackletSavingStream.PED_TRACKLET_SAVING_PORT));
+                attrRecogNode.outputTo(attrSavingNode.createInputPort(
+                    DataManagingApp.AttrSavingStream.PED_ATTR_SAVING_PORT));
+                reidFeatureExtractNode.outputTo(reidFeatureSavingNode.createInputPort(
+                    DataManagingApp.ReidFeatureSavingStream.PED_REID_FEATURE_SAVING_PORT));
 
                 videoPaths.forEach(path -> {
                     final String taskID = UUID.randomUUID().toString();

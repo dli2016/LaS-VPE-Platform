@@ -11,6 +11,7 @@
 package org.cripac.isee.vpe.data;
 
 import org.cripac.isee.alg.pedestrian.attr.Attributes;
+import org.cripac.isee.alg.pedestrian.reid.Feature;
 import org.neo4j.driver.v1.*;
 import com.google.gson.*;
 
@@ -216,6 +217,11 @@ public class Neo4jConnector extends GraphDatabaseConnector {
         }
         // No match.
         throw new NoSuchElementException();
+    }
+
+    @Override
+    public void setPedestrianReIDFeature(String nodeID, Feature fea) {
+
     }
 
     @Override

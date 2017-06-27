@@ -18,6 +18,7 @@
 package org.cripac.isee.vpe.data;
 
 import org.cripac.isee.alg.pedestrian.attr.Attributes;
+import org.cripac.isee.alg.pedestrian.reid.Feature;
 
 import javax.annotation.Nonnull;
 import java.util.NoSuchElementException;
@@ -79,6 +80,15 @@ public abstract class GraphDatabaseConnector {
      */
     public abstract void setPedestrianAttributes(@Nonnull String nodeID,
                                                  @Nonnull Attributes attr);
+
+    /**
+     * Set the reid feature of a pedestrian.
+     * 
+     * @param nodeID the ID of the pedestrian.
+     * @param fea    the reid feature of the pedestrian.
+     */
+    public abstract void setPedestrianReIDFeature(@Nonnull String nodeID,
+                                                  @Nonnull Feature fea);
 
     /**
      * Get the attributes of a pedestrian.

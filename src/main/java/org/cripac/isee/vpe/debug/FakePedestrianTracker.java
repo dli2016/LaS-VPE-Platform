@@ -20,10 +20,26 @@ package org.cripac.isee.vpe.debug;
 import org.cripac.isee.alg.pedestrian.tracking.Tracker;
 import org.cripac.isee.alg.pedestrian.tracking.Tracklet;
 import org.cripac.isee.alg.pedestrian.tracking.Tracklet.BoundingBox;
+import org.cripac.isee.alg.pedestrian.tracking.Tracklet.Identifier;
 
 import javax.annotation.Nonnull;
 import java.io.InputStream;
 import java.util.Random;
+
+import java.io.File;
+import java.io.FileInputStream;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
+import org.bytedeco.javacpp.BytePointer;
+import org.bytedeco.javacpp.Loader;
+import org.bytedeco.javacpp.opencv_core;
+import org.bytedeco.javacpp.opencv_imgproc;
+
+import static org.bytedeco.javacpp.opencv_imgcodecs.IMREAD_COLOR;
+import static org.bytedeco.javacpp.opencv_imgcodecs.imread;
 
 public class FakePedestrianTracker implements Tracker {
 
@@ -66,6 +82,55 @@ public class FakePedestrianTracker implements Tracker {
         return tracklets;
     }
 
+    private Tracklet[] loadTestTracklets() {
+        int numTracks = 2;
+        Tracklet[] tracklets = new Tracklet[numTracks];
+        String dirA = "src/test/resources/tracklets/1";
+        String dirB = "src/test/resources/tracklets/2";
+        tracklets[0] = loadTracklet(dirA);
+        tracklets[1] = loadTracklet(dirB);
+
+        return tracklets;
+    }
+
+    private Tracklet loadTracklet(String storedLocalDir) {
+        File f = new File(storedLocalDir);
+        if (!f.exists()) {
+            System.out.println(storedLocalDir + " not exists!");
+            return null;
+        }
+        File files[] = f.listFiles();
+        List<BoundingBox> samples = new ArrayList<>();
+        for (int i = 0; i < files.length; ++i) {
+            File fs = files[i];
+            if (fs.isDirectory()) {
+                continue;
+            } else {
+                BoundingBox bbox = new BoundingBox();
+                String imagePath = storedLocalDir + "/" + fs.getName();
+                opencv_core.Mat img = imread(imagePath, IMREAD_COLOR);
+                if (img == null || img.empty()) {
+                    System.out.println("Error: Load image FAILED!");
+                    return null;
+                }
+                bbox.width = img.cols();
+                bbox.height= img.rows();
+                bbox.patchData = new byte[img.rows() * img.cols() * img.channels()];
+                img.data().get(bbox.patchData);
+                img.release();
+                samples.add(bbox);
+            }
+        }
+        BoundingBox[] bboxes = new BoundingBox[samples.size()];
+        samples.toArray(bboxes);
+        Tracklet tracklet = new Tracklet();
+        tracklet.id.videoID = storedLocalDir;
+        tracklet.id.serialNumber = 1;
+        tracklet.locationSequence = bboxes;
+
+        return tracklet;
+    }
+
     @Nonnull
     @Override
     public Tracklet[] track(@Nonnull InputStream videoStream) {
@@ -74,6 +139,6 @@ public class FakePedestrianTracker implements Tracker {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        return generateRandomTrackSet();
+        return loadTestTracklets();
     }
 }
