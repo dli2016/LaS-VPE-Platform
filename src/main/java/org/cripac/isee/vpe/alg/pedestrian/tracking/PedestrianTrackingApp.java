@@ -240,11 +240,14 @@ public class PedestrianTrackingApp extends SparkStreamingApp {
 
                                     // Modified by da.li on 2017/06/06
                                     final Tracker tracker;
+                                    File pbFile = null;
+                                    File modelFile = null;
                                     if (trackerMethod == 0) { // Motion Detection.
+                                        logger.debug("Now using BASIC Tracker!");
                                         tracker = new BasicTracker(confBytes, logger);
                                     } else if (trackerMethod == 1) { // SSD
-                                        File pbFile = getResource("/models/SSDCaffe/deploy.prototxt");
-                                        File modelFile = getResource("/models/SSDCaffe/deploy.caffemodel");
+                                        pbFile = getResource("/models/SSDCaffe/deploy.prototxt");
+                                        modelFile = getResource("/models/SSDCaffe/deploy.caffemodel");
                                         tracker = new SSDTracker(confBytes,
                                                                  caffeGPU,
                                                                  confidenceThreshold,
@@ -273,7 +276,13 @@ public class PedestrianTrackingApp extends SparkStreamingApp {
                                             }
                                     ).execute();
                                     logger.debug("Finished tracking on " + videoName);
-
+                                    // New add on 2017/0629
+                                    if (trackerMethod == 1) {
+                                        pbFile.delete();
+                                        modelFile.delete();
+                                        logger.debug("Tmp file deleted!");
+                                    } 
+                                    // End by da.li
                                     // Set video IDs and Send tracklets.
                                     for (Tracklet tracklet : tracklets) {
                                         // Conduct sampling on the tracklets to save memory.
@@ -306,6 +315,18 @@ public class PedestrianTrackingApp extends SparkStreamingApp {
                                     logger.error("During tracking.", e);
                                 }
                             });
+                            /*
+                            if (pbFile.delete()) {
+                                logger.debug("Tmp pb file has been deleted!");
+                            } else {
+                                logger.fatal("An ERROR in deleting pb file.");
+                            }
+                            if (modelFile.delete()) {
+                                logger.debug("Tmp model file has been deleted!");
+                            } else {
+                                logger.fatal("An ERROR in deleting model file.");
+                            }
+                            */ 
                         }
                         if (kvList.size() > 0) {
                             long endTime = System.currentTimeMillis();
