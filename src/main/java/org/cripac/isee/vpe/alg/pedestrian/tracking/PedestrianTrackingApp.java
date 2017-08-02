@@ -289,8 +289,11 @@ public class PedestrianTrackingApp extends SparkStreamingApp {
                                         tracklet.sample(numSamplesPerTracklet);
                                         tracklet.id.videoID = videoName;
                                         try {
-                                            output(outputPorts, taskData.executionPlan,
-                                                    new TrackletOrURL(tracklet), taskID);
+                                            output(outputPorts, 
+                                                   taskData.executionPlan,
+                                                   new TrackletOrURL(tracklet), 
+                                                   taskData.userPlan,
+                                                   taskID);
                                         } catch (MessageSizeTooLargeException
                                                 | KafkaException
                                                 | FailedToSendMessageException e) {
@@ -302,11 +305,12 @@ public class PedestrianTrackingApp extends SparkStreamingApp {
                                             final String storeDir = taskRoot + "/" + tracklet.id.serialNumber;
                                             logger.debug("Tracklet " + tracklet.id
                                                     + " is too long. Passing it through HDFS at \"" + storeDir + "\".");
-                                            HadoopHelper.storeTracklet(storeDir, tracklet, hdfs);
+                                            HadoopHelper.storeTrackletNew(storeDir, tracklet, hdfs); // Add new ... by da.li
                                             output(outputPorts,
-                                                    taskData.executionPlan,
-                                                    new TrackletOrURL(storeDir),
-                                                    taskID);
+                                                   taskData.executionPlan,
+                                                   new TrackletOrURL(storeDir),
+                                                   taskData.userPlan,
+                                                   taskID);
                                         }
                                     }
 

@@ -183,7 +183,8 @@ public class MessageHandlingApp extends SparkStreamingApp {
                     final TaskData taskData = new TaskData(
                             trackingNode.createInputPort(HDFSVideoTrackingStream.VIDEO_URL_PORT),
                             plan,
-                            path.toString());
+                            path.toString(),
+                            CommandType.TRACK_ONLY);  // Modified by da.li.
                     sendWithLog(taskID, taskData, producer, logger);
                 });
                 break;
@@ -209,7 +210,8 @@ public class MessageHandlingApp extends SparkStreamingApp {
                     final TaskData taskData = new TaskData(
                             trackingNode.createInputPort(HDFSVideoTrackingStream.VIDEO_URL_PORT),
                             plan,
-                            path.toString());
+                            path.toString(),
+                            CommandType.TRACK_ATTRRECOG);  // Modified by da.li.
                     sendWithLog(taskID, taskData, producer, logger);
                 });
                 break;
@@ -237,7 +239,8 @@ public class MessageHandlingApp extends SparkStreamingApp {
                     final TaskData taskData = new TaskData(
                             trackingNode.createInputPort(HDFSVideoTrackingStream.VIDEO_URL_PORT),
                             plan,
-                            path.toString());
+                            path.toString(),
+                            CommandType.TRACK_REID);  // Modified by da.li.
                     sendWithLog(taskID, taskData, producer, logger);
                 });
                 break;
@@ -270,7 +273,8 @@ public class MessageHandlingApp extends SparkStreamingApp {
                     final TaskData taskData = new TaskData(
                             trackingNode.createInputPort(HDFSVideoTrackingStream.VIDEO_URL_PORT),
                             plan,
-                            path.toString());
+                            path.toString(),
+                            CommandType.TRACK_ATTRRECOG_REID);  // Modified by da.li.
                     sendWithLog(taskID, taskData, producer, logger);
                 });
                 break;
@@ -306,7 +310,8 @@ public class MessageHandlingApp extends SparkStreamingApp {
                     final TaskData taskData = new TaskData(
                             trackingNode.createInputPort(HDFSVideoTrackingStream.VIDEO_URL_PORT),
                             plan,
-                            path.toString());
+                            path.toString(),
+                            "dli_test_20170802"); // Modified by da.li.
                     sendWithLog(taskID, taskData, producer, logger);
                 });
                 break;
@@ -325,12 +330,15 @@ public class MessageHandlingApp extends SparkStreamingApp {
                     final Tracklet.Identifier id = new Tracklet.Identifier(
                             path.getName().substring(0, path.getName().lastIndexOf('.')),
                             Integer.valueOf(trackletIdx));
-                    final TrackletOrURL url = new TrackletOrURL(dbConnector.getTrackletSavingDir(id.videoID)
-                            + "/" + id.serialNumber);
+                    //final TrackletOrURL url = new TrackletOrURL(dbConnector.getTrackletSavingDir(id.videoID)
+                    //        + "/" + id.serialNumber);
+                    final TrackletOrURL url = new TrackletOrURL(dbConnector.getTrackletSavingDir(id.toString(),
+                              CommandType.ATTRRECOG_ONLY)); // Modified by da.li.
                     final TaskData taskData = new TaskData(
                             attrRecogNode.createInputPort(PedestrianAttrRecogApp.RecogStream.TRACKLET_PORT),
                             plan,
-                            url);
+                            url,
+                            CommandType.ATTRRECOG_ONLY);  // Modified by da.li.
                     sendWithLog(taskID, taskData, producer, logger);
                 });
                 break;
@@ -355,14 +363,17 @@ public class MessageHandlingApp extends SparkStreamingApp {
                     final Tracklet.Identifier id = new Tracklet.Identifier(
                             path.getName().substring(0, path.getName().lastIndexOf('.')),
                             Integer.valueOf(trackletIdx));
-                    final TrackletOrURL url = new TrackletOrURL(dbConnector.getTrackletSavingDir(id.videoID)
-                            + "/" + id.serialNumber);
+                    //final TrackletOrURL url = new TrackletOrURL(dbConnector.getTrackletSavingDir(id.videoID)
+                    //        + "/" + id.serialNumber);
+                    final TrackletOrURL url = new TrackletOrURL(dbConnector.getTrackletSavingDir(id.toString(),
+                              CommandType.ATTRRECOG_REID));  // Modified by da.li.
                     final TaskData taskData = new TaskData(
                             Arrays.asList(
                                     attrRecogNode.createInputPort(PedestrianAttrRecogApp.RecogStream.TRACKLET_PORT),
                                     reidNode.createInputPort(PedestrianReIDUsingAttrApp.ReIDStream.TRACKLET_PORT)),
                             plan,
-                            url);
+                            url,
+                            CommandType.ATTRRECOG_REID); // Modified by da.li.
                     sendWithLog(taskID, taskData, producer, logger);
                 });
                 break;
@@ -383,12 +394,14 @@ public class MessageHandlingApp extends SparkStreamingApp {
                     final Tracklet.Identifier id = new Tracklet.Identifier(
                             path.getName().substring(0, path.getName().lastIndexOf('.')),
                             Integer.valueOf(trackletIdx));
-                    final TrackletOrURL url = new TrackletOrURL(dbConnector.getTrackletSavingDir(id.videoID)
-                            + "/" + id.serialNumber);
+                    //final TrackletOrURL url = new TrackletOrURL(dbConnector.getTrackletSavingDir(id.videoID)
+                    //        + "/" + id.serialNumber);
+                    final TrackletOrURL url = new TrackletOrURL(dbConnector.getTrackletSavingDir(id.toString(),
+                            CommandType.REID_ONLY)); // Modified by da.li.
                     final Attributes attr;
                     try {
                         attr = new RobustExecutor<Void, Attributes>((Function0<Attributes>) () ->
-                                dbConnector.getPedestrianAttributes(id.toString())
+                                dbConnector.getPedestrianAttributes(id.toString(), CommandType.REID_ONLY)
                         ).execute();
                     } catch (Exception e) {
                         logger.error("During retrieving attributes", e);
@@ -398,7 +411,8 @@ public class MessageHandlingApp extends SparkStreamingApp {
                     final TaskData taskData = new TaskData(
                             reidNode.createInputPort(PedestrianReIDUsingAttrApp.ReIDStream.TRACKLET_ATTR_PORT),
                             plan,
-                            info);
+                            info,
+                            CommandType.REID_ONLY);  // Modified by da.li
                     sendWithLog(taskID, taskData, producer, logger);
                 });
                 break;

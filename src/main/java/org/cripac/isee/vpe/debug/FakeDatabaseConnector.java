@@ -46,6 +46,14 @@ public class FakeDatabaseConnector extends GraphDatabaseConnector {
                                       @Nonnull String path) {
     }
 
+    @Override
+    public void setPedestrianTracklet(@Nonnull String nodeID,
+                                      @Nonnull String dataType,
+                                      @Nonnull String trackletPath,
+                                      @Nonnull String trackletInfo) {
+
+    }
+
     /*
      * (non-Javadoc)
      *
@@ -54,7 +62,8 @@ public class FakeDatabaseConnector extends GraphDatabaseConnector {
      * java.lang.String, java.lang.String)
      */
     @Override
-    public String getTrackletSavingDir(@Nonnull String nodeID) throws NoSuchElementException {
+    public String getTrackletSavingDir(@Nonnull String nodeID,
+                                       @Nonnull String dataType) throws NoSuchElementException {
         return "har:///user/labadmin/metadata/" + nodeID;
     }
 
@@ -90,6 +99,7 @@ public class FakeDatabaseConnector extends GraphDatabaseConnector {
      */
     @Override
     public void setPedestrianAttributes(@Nonnull String nodeID,
+                                        @Nonnull String dataType,
                                         @Nonnull Attributes attr) {
     }
 
@@ -99,6 +109,7 @@ public class FakeDatabaseConnector extends GraphDatabaseConnector {
      */
     @Override
     public void setPedestrianReIDFeature(@Nonnull String nodeID,
+                                         @Nonnull String dataType,
                                          @Nonnull Feature fea) {
     }
 
@@ -109,8 +120,15 @@ public class FakeDatabaseConnector extends GraphDatabaseConnector {
      * getPedestrianAttributes(java.lang.String)
      */
     @Override
-    public Attributes getPedestrianAttributes(@Nonnull String nodeID) throws NoSuchElementException {
+    public Attributes getPedestrianAttributes(@Nonnull String nodeID,
+                                              @Nonnull String dataType) throws NoSuchElementException {
         return new Attributes();
+    }
+
+    @Override
+    public Feature getPedestrianReIDFeature(@Nonnull String nodeID,
+                                            @Nonnull String dataType) throws NoSuchElementException {
+        return null;
     }
 
     @Override

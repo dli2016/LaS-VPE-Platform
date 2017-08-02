@@ -179,9 +179,9 @@ public class PedestrianReIDFeatureExtractionApp extends SparkStreamingApp {
                         // Get ports to output to.
                         assert curNode != null;
                         final List<TaskData.ExecutionPlan.Node.Port> outputPorts = curNode.getOutputPorts();
-                        // Mark the current node as executed.
+                        // Mark the current node as executed (Add userPlan by da.li).
                         curNode.markExecuted();
-                        output(outputPorts, taskData.executionPlan, feature, taskID);
+                        output(outputPorts, taskData.executionPlan, feature, taskData.userPlan, taskID);
                     } catch (Exception e) { 
                         logger.error("During reid feature extraction.", e);
                     }

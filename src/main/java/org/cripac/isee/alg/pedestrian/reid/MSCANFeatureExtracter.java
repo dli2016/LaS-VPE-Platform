@@ -25,6 +25,7 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.file.AccessDeniedException;
 
 import java.util.Random;
+import java.util.Collection;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.bytedeco.javacpp.opencv_core.*;
@@ -128,22 +129,25 @@ public class MSCANFeatureExtracter implements ReIDFeatureExtracter {
     public synchronized Feature extract(@Nonnull PedestrianInfo person) throws Exception {
         synchronized (this) {
             Tracklet tracklet = person.trackletOrURL.getTracklet();
-            
-            Tracklet.BoundingBox[] bboxes = tracklet.locationSequence;
+            Collection<Tracklet.BoundingBox> bboxes = tracklet.getSamples();
+            // Tracklet.BoundingBox[] bboxes = tracklet.locationSequence;
 
-            float[][] data = new float[bboxes.length][];
+            float[][] data = new float[bboxes.size()][];
 
-            for (int bi = 0; bi < bboxes.length; ++bi) {
-                assert bboxes[bi] != null;
-                data[bi] = preprocess(bboxes[bi]);
+            //for (int bi = 0; bi < bboxes.size(); ++bi) {
+            //    assert bboxes.get(bi) != null;
+            //    data[bi] = preprocess(bboxes.get(bi));
+            //}
+            int bi = 0;
+            for (Tracklet.BoundingBox box : bboxes) {
+                assert box != null;
+                data[bi] = preprocess(box);
+                bi += 1;
             }
 
-            //final long startInside = System.currentTimeMillis();
             float[] featureFloat = new float[FEATURE_LEN];
             extractFeature(handle, data, featureFloat);
             Feature feature = new FeatureMSCAN(featureFloat, tracklet.id);
-            //final long endInside = System.currentTimeMillis();
-            //logger.debug("  -- cost time of only calculating the similarity is " + (endInside - startInside) + "ms");
 
             return feature;
         }
@@ -152,6 +156,8 @@ public class MSCANFeatureExtracter implements ReIDFeatureExtracter {
     /**
      * The function here is to calculate the dissimilarity of two pedestrian
      * using mscan features. (Its only a function to test).
+     *
+     * TODO: A bug here - need convert locationSequence to getSamples()!!
      */
     @Override
     public synchronized float calDissimilarity(@Nonnull PedestrianInfo personA, 

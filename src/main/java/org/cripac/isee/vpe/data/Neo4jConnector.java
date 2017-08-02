@@ -12,8 +12,10 @@ package org.cripac.isee.vpe.data;
 
 import org.cripac.isee.alg.pedestrian.attr.Attributes;
 import org.cripac.isee.alg.pedestrian.reid.Feature;
+import org.cripac.isee.alg.pedestrian.reid.FeatureMSCAN;
 import org.neo4j.driver.v1.*;
 import com.google.gson.*;
+import org.apache.commons.codec.binary.Base64;
 
 import javax.annotation.Nonnull;
 import java.util.NoSuchElementException;
@@ -173,12 +175,86 @@ public class Neo4jConnector extends GraphDatabaseConnector {
         session.close();
     }
 
+    // Add by da.li on 2017/07/20
+    // Insert the tracking results:
     @Override
-    public String getTrackletSavingDir(@Nonnull String nodeID) throws NoSuchElementException {
+    public void setPedestrianTracklet(@Nonnull String nodeID,
+                                      @Nonnull String dataType,
+                                      @Nonnull String trackletPath,
+                                      @Nonnull String trackletInfo) {
+        // Set path to an existing node or one newly created.
+        Session session = driver.session();
+        // Parse tracklet information.
+        JsonParser jParser = new JsonParser();
+        JsonObject jObject = jParser.parse(trackletInfo).getAsJsonObject();
+        // Start frame index of a tracklet.
+        int trackletStartIdx = jObject.get("run-frame-index").getAsInt();
+        // tracklet id.
+        JsonObject jObjectId = jObject.get("id").getAsJsonObject();
+        // Start time & CAM ID.
+        String videoURL = jObjectId.get("video-url").getAsString();
+        String camID = videoURL.split("-")[0];
+        String videoStartTime = videoURL.split("-")[1];
+        String trackletStartTime = calTrackletStartTime(trackletStartIdx,
+                                                        videoStartTime);
+        // bounding box
+        JsonArray jArrayBoundingBoxes = jObject.get("bounding-boxes").getAsJsonArray();
+        String bbCoordinatesInfo = jArrayBoundingBoxes.toString();
+        //long t = System.currentTimeMillis();
+        //System.out.println("(cost1:" + (t2-t1) + "), " 
+        //                 + "(cost-get-trackletStartTime:" + (t3-t2) + "), " 
+        //                 + "(cost-get-boundingbox:" + (t4-t3) +")");        
+
+        // Insert Node.
+        session.run("MERGE (p:Person {tracklet_id: {id}, dataType: {dataType}}) SET " 
+                  + "p.path={path}, "
+                  + "p.startTime=toint({startTime}), "
+                  + "p.startIndex={startIndex}, "
+                  + "p.boundingBoxes={boundingBoxes}, "
+                  + "p.camID={camID}, "
+                  + "p.videoURL={videoURL};",
+                Values.parameters("id", nodeID,
+                                  "dataType", dataType,
+                                  "path", trackletPath,
+                                  "startTime", trackletStartTime,
+                                  "startIndex",trackletStartIdx,
+                                  "boundingBoxes", bbCoordinatesInfo,
+                                  "camID", camID,
+                                  "videoURL", videoURL));
+        // Insert Relation. About 400ms ...
+        /*
+        */
+        String queryYear = trackletStartTime.substring(0,4);
+        String queryMon  = trackletStartTime.substring(0,6);
+        String queryDay  = trackletStartTime.substring(0,8);
+        String queryHour = trackletStartTime.substring(0,10);
+        String run = "MATCH (n:Root)-[:HAS_YEAR]->(y:Year {year: toint({year})})-[:HAS_MONTH]->" +
+        "(mon:Month {month: toint({month})})-[:HAS_DAY]->(d:Day {day: toint({day})})-[:HAS_HOUR]->" +
+        "(h:Hour {hour: toint({hour})})-[:HAS_MIN]->(min) WHERE toint(tostring(min.start)+'00')<=" +
+        "toint({trackletStartTime}) AND toint({trackletStartTime})<=toint(tostring(min.end)+'59') " +
+        "MATCH (p:Person {id: {id}, dataType: {dataType}}) MERGE (min)-[:INCLUDES_PERSON]->(p);";
+        session.run(run, Values.parameters(
+            "year", queryYear,
+            "month",queryMon,
+            "day",  queryDay,
+            "hour", queryHour,
+            "trackletStartTime", trackletStartTime,
+            "trackletStartTime", trackletStartTime,
+            "id",   nodeID,
+            "dataType", dataType
+        ));
+
+        // Close session.
+        session.close();
+    }
+
+    @Override
+    public String getTrackletSavingDir(@Nonnull String nodeID,
+                                       @Nonnull String dataType) throws NoSuchElementException {
         // Return path of an existing node, otherwise, return nothing.
         Session session = driver.session();
-        StatementResult result = session.run("MATCH (p:Person {id: {id}}) RETURN p.path;",
-                Values.parameters("id", nodeID));
+        StatementResult result = session.run("MATCH (p:Person {tracklet_id: {id}, dataType: {dataType}}) RETURN p.path;",
+                Values.parameters("id", nodeID, "dataType", dataType));
         session.close();
         if (result.hasNext()) {
             // Just return the first match.
@@ -195,7 +271,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
         // If one of idA and idB does not exist, do nothing.
         // If relationship already exists, change the value; Otherwise, create a relationship and set the value.
         Session session = driver.session();
-        session.run("MATCH (p1:Person {id: {id1}}), (p2:Person {id: {id2}}) " +
+        session.run("MATCH (p1:Person {tracklet_id: {id1}}), (p2:Person {tracklet_id: {id2}}) " +
                         "MERGE (p1)-[s:Similar]->(p2) " +
                         "SET s.similarity={sim};",
                 Values.parameters("id1", idA, "id2", idB, "sim", similarity));
@@ -206,7 +282,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
     public float getPedestrianSimilarity(@Nonnull String idA, @Nonnull String idB) throws NoSuchElementException {
         // Match the whole pattern and return the similarity, if the pattern exists.
         Session session = driver.session();
-        StatementResult result = session.run("MATCH (p1:Person {id: {id1}})-[s:Similar]->(p2:Person {id: {id2}}) " +
+        StatementResult result = session.run("MATCH (p1:Person {tracklet_id: {id1}})-[s:Similar]->(p2:Person {tracklet_id: {id2}}) " +
                         "RETURN s.similarity;",
                 Values.parameters("id1", idA, "id2", idB));
         session.close();
@@ -220,15 +296,50 @@ public class Neo4jConnector extends GraphDatabaseConnector {
     }
 
     @Override
-    public void setPedestrianReIDFeature(String nodeID, Feature fea) {
-
+    public void setPedestrianReIDFeature(@Nonnull String nodeID,
+                                         @Nonnull String dataType, 
+                                         @Nonnull Feature fea) {
+        Session session = driver.session();
+        byte[] feature = fea.getBytes();
+        String feaStringBase64 = Base64.encodeBase64String(feature);
+        session.run("MERGE (p:Person {tracklet_id: {id}, dataType: {dataType}}) SET "
+                  + "p.reidFeature={reidFeature}, "
+                  + "p.isFinish={isFinish}, "
+                  + "p.isGetSim={isGetSim};",
+                  Values.parameters("id", nodeID, 
+                                    "dataType", dataType, 
+                                    "reidFeature", feaStringBase64,
+                                    "isFinish", true,
+                                    "isGetSim", false));
+        session.close();
     }
 
     @Override
-    public void setPedestrianAttributes(@Nonnull String nodeID, @Nonnull Attributes attr) {
+    public Feature getPedestrianReIDFeature(@Nonnull String nodeID,
+                                            @Nonnull String dataType) throws NoSuchElementException {
+        Session session = driver.session();
+        StatementResult result = session.run(
+            "MATCH (p:Person {tracklet_id: {id}, dataType: {dataType}}) RETURN p.reidFeature;",
+            Values.parameters("id", nodeID, "dataType", dataType)
+        );
+        session.close();
+        if (result.hasNext()) {
+            Record record = result.next();
+            String featureBase64Str = record.get("p.reidFeature").asString();
+            byte[] featureBytes = Base64.decodeBase64(featureBase64Str);
+            Feature feature = new FeatureMSCAN(featureBytes);
+            return feature;
+        }
+        throw new NoSuchElementException();
+    }
+
+    @Override
+    public void setPedestrianAttributes(@Nonnull String nodeID, 
+                                        @Nonnull String dataType,
+                                        @Nonnull Attributes attr) {
         // Set attributes to an existing node or one newly created.
         Session session = driver.session();
-        session.run("MERGE (p:Person {id: {id}}) SET "
+        session.run("MERGE (p:Person {tracklet_id: {id}, dataType: {dataType}}) SET "
                         + "p.genderMale = {genderMale}, "
                         + "p.genderFemale = {genderFemale}, "
                         + "p.genderOther = {genderOther}, "
@@ -356,6 +467,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
                         + "p.occlusionOther = {occlusionOther};",
                 Values.parameters(
                         "id", nodeID,
+                        "dataType", dataType,
                         "genderMale", attr.genderMale,
                         "genderFemale", attr.genderFemale,
                         "genderOther", attr.genderOther,
@@ -486,10 +598,11 @@ public class Neo4jConnector extends GraphDatabaseConnector {
     }
 
     @Override
-    public Attributes getPedestrianAttributes(@Nonnull String nodeID) throws NoSuchElementException {
+    public Attributes getPedestrianAttributes(@Nonnull String nodeID,
+                                              @Nonnull String dataType) throws NoSuchElementException {
         // Return attributes of an existing node, otherwise, return nothing.
         Session session = driver.session();
-        StatementResult result = session.run("MATCH (p:Person {id: {id}}) RETURN "
+        StatementResult result = session.run("MATCH (p:Person {tracklet_id: {id}, dataType: {dataType}}) RETURN "
                         + "p.genderMale, "
                         + "p.genderFemale, "
                         + "p.genderOther, "
@@ -615,7 +728,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
                         + "p.occlusionAccessory, "
                         + "p.occlusionObject, "
                         + "p.occlusionOther;",
-                Values.parameters("id", nodeID));
+                Values.parameters("id", nodeID, "dataType", dataType));
         session.close();
         if (result.hasNext()) {
             // Just return the first match.

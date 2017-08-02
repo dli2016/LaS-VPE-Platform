@@ -29,6 +29,12 @@ import java.io.Serializable;
 import java.net.InetAddress;
 import java.util.*;
 
+import java.net.URI;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.FileStatus;
+
 import static org.apache.commons.lang3.SerializationUtils.serialize;
 import static org.cripac.isee.vpe.util.kafka.KafkaHelper.sendWithLog;
 
@@ -47,7 +53,60 @@ public class MessageHandlingAppTest implements Serializable {
     public static void main(String[] args) throws Exception {
         MessageHandlingAppTest app = new MessageHandlingAppTest();
         app.init(args);
-        app.generatePresetCommand();
+        //app.generatePresetCommand();
+        /*
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2013-12-24", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-12", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-15", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-17", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-21", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-25", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-26", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-02", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-03", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-10", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2013-12-23", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-11", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-13", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-14", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-15", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-16", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-20", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-22", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-23", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-24", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-27", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-02-28", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-01", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-04", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-05", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-07", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-08", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-11", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-12", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-13", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-18", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-20", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-21", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-24", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-25", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-26", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-27", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-28", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-03-31", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-04-15", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-04-16", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-04-17", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-04-18", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-04-19", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-04-20", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-04-21", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-04-22", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-04-23", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-04-24", "source_data");
+        app.generatePresetCommand("/user/vpe.cripac/source_data/video/CAM01/2014-04-25", "source_data");
+        */
+        app.generatePresetCommand("/user/vpe.cripac/test/da.li/videos/2014-02-26", "test");
     }
 
     @Before
@@ -71,6 +130,67 @@ public class MessageHandlingAppTest implements Serializable {
         logger = new ConsoleLogger(Level.DEBUG);
     }
 
+    private String[] getFileList(String path) throws Exception {
+        Configuration conf = new Configuration();
+        conf.set("fs.hdfs.impl", org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
+        conf.setBoolean("dfs.support.append", true);
+        String hadoopHome = System.getenv("HADOOP_HOME");
+        
+        FileSystem hdfs = FileSystem.get(new URI("hdfs://rtask-nod8:8020"), conf);
+        List<String> files = new ArrayList<String>();
+        Path s_path = new Path(path);
+
+        if (hdfs.exists(s_path)) {
+            for (FileStatus status:hdfs.listStatus(s_path)) {
+                files.add(status.getPath().toString());
+            }
+        } else {
+            System.out.println("Hey guys, you are wrong!");
+        }
+        hdfs.close();
+
+        return files.toArray(new String[]{});
+    }
+
+    public void generatePresetCommand(String path, String flag) throws Exception {
+        String[] filenames = getFileList(path);
+        int idx = 0;
+        HashMap<String, Serializable> param = new HashMap<>();
+        param.put(MessageHandlingApp.Parameter.TRACKING_CONF_FILE,
+                "isee-basic/CAM01_0.conf");
+        param.put(MessageHandlingApp.Parameter.WEBCAM_LOGIN_PARAM,
+                new Gson().toJson(new LoginParam(InetAddress.getLocalHost(), 0,
+                        "Ken Yu", "I love Shenzhen!")));
+        for (String filename : filenames) {
+            String video_name = filename.substring(filename.indexOf(flag), filename.length());
+            idx = idx + 1;
+            System.out.println("====================== video " +  ""+idx  + " =======================");
+            System.out.println("Video Name: "+ video_name);
+            param.put(MessageHandlingApp.Parameter.VIDEO_URL, video_name);
+            /*
+            */
+            sendWithLog(DataType.COMMAND.name(),
+                    MessageHandlingApp.CommandType.TRACK_ATTRRECOG_REIDFEATURE,
+                    serialize(param),
+                    producer,
+                    logger);
+            /*
+            sendWithLog(DataType.COMMAND.name(),
+                    MessageHandlingApp.CommandType.TRACK_ONLY,
+                    serialize(param),
+                    producer,
+                    logger);
+            */
+            /*
+            sendWithLog(DataType.COMMAND.name(),
+                    MessageHandlingApp.CommandType.TRACK_ATTRRECOG,
+                    serialize(param),
+                    producer,
+                    logger);
+            */
+        }
+    }
+
     //    @Test
     public void generatePresetCommand() throws Exception {
         String[] cam01VideoURLs = {
@@ -82,6 +202,7 @@ public class MessageHandlingAppTest implements Serializable {
                 "source_data/video/CAM01/2013-12-23/20131223103919-20131223104515.h264",
                 "source_data/video/CAM01/2013-12-23/20131223104515-20131223105107.h264",
                 "source_data/video/CAM01/2013-12-23/20131223105107-20131223105659.h264",
+                /*
                 "source_data/video/CAM01/2013-12-23/20131223105659-20131223110255.h264",
                 "source_data/video/CAM01/2013-12-23/20131223110255-20131223110847.h264",
                 "source_data/video/CAM01/2013-12-23/20131223110847-20131223111447.h264",
@@ -155,6 +276,7 @@ public class MessageHandlingAppTest implements Serializable {
                 "source_data/video/CAM01/2013-12-23/20131223174724-20131223175316.h264",
                 "source_data/video/CAM01/2013-12-23/20131223175316-20131223175916.h264",
                 "source_data/video/CAM01/2013-12-23/20131223175916-20131223180508.h264",
+                */
         };
 
         HashMap<String, Serializable> param = new HashMap<>();
@@ -172,20 +294,22 @@ public class MessageHandlingAppTest implements Serializable {
                     serialize(param),
                     producer,
                     logger);
-
+            /*
             sendWithLog(DataType.COMMAND.name(),
-                    MessageHandlingApp.CommandType.TRACK_ATTRRECOG,
+                    MessageHandlingApp.CommandType.TRACK_ATTRRECOG_REIDFEATURE,
                     serialize(param),
                     producer,
                     logger);
-
+            */
+            /*
             sendWithLog(DataType.COMMAND.name(),
                     MessageHandlingApp.CommandType.TRACK_ATTRRECOG_REID,
                     serialize(param),
                     producer,
                     logger);
+            */
         }
-
+        /*
         param.put(MessageHandlingApp.Parameter.TRACKLET_INDEX, "1");
 
         sendWithLog(DataType.COMMAND.name(),
@@ -205,5 +329,6 @@ public class MessageHandlingAppTest implements Serializable {
                 serialize(param),
                 producer,
                 logger);
+        */
     }
 }

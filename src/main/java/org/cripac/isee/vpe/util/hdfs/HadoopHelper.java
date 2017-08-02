@@ -19,6 +19,7 @@ package org.cripac.isee.vpe.util.hdfs;
 
 import com.google.gson.*;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.codec.binary.Base64;  // Add by da.li.
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
@@ -34,9 +35,12 @@ import org.spark_project.guava.collect.Range;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.*;
 
 import static org.bytedeco.javacpp.opencv_core.CV_8UC3;
 import static org.bytedeco.javacpp.opencv_imgcodecs.imdecode;
@@ -153,7 +157,7 @@ public class HadoopHelper {
                             imgInputStream = fs.open(imgPath);
                             byte[] rawBytes = IOUtils.toByteArray(imgInputStream);
                             imgInputStream.close();
-                            opencv_core.Mat img = imdecode(new opencv_core.Mat(rawBytes), CV_8UC3);
+                            opencv_core.Mat img = imdecode(new opencv_core.Mat(rawBytes), 1); // CV_LOAD_IMAGE_COLOR=1
                             bbox.patchData = new byte[img.rows() * img.cols() * img.channels()];
                             img.data().get(bbox.patchData);
                             img.release();
@@ -169,7 +173,7 @@ public class HadoopHelper {
     }
 
     /**
-     * Get the content of info.txt in Har.
+     * Get the content of info.txt in hdfs of Har.
      * 
      * @param  storeDir the directory storing the tracklet.
      * @throws IOException        on failure of retrieving the tracklet.
@@ -220,6 +224,32 @@ public class HadoopHelper {
         }
 
         return trackletInfo;
+    }
+
+    /**
+     * Get the content of info.txt in hdfs.
+     * 
+     * @param  storeDir the directory storing the tracklet.
+     * @throws IOException        on failure of retrieving the tracklet.
+     * @throws URISyntaxException on syntax error detected in the storeDir.
+     * @return the content in info.txt which is in json format (as a string).
+     */
+    public static String getTrackletInfo(@Nonnull String storeDir,
+                                         @Nonnull FileSystem hdfs) throws IOException, URISyntaxException {
+        final InputStreamReader infoReader;
+        boolean onHDFS = false;
+        try {
+            onHDFS = hdfs.exists(new Path(storeDir));
+        } catch (IOException | IllegalArgumentException ignored) {
+        }
+        if (onHDFS) {
+            infoReader = new InputStreamReader(hdfs.open(new Path(storeDir + "/info.txt")));
+            BufferedReader bufferedReader = new BufferedReader(infoReader);
+            String trackletInfo = bufferedReader.readLine();
+            return trackletInfo;
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -283,5 +313,135 @@ public class HadoopHelper {
                     inputPointer.deallocate();
                     outputPointer.deallocate();
                 });
+    }
+
+    /**
+     * Store a tracklet to the HDFS.
+     *
+     * @param storeDir the directory storing the tracklet.
+     * @param tracklet the tracklet to store.
+     * @throws IOException on failure creating and writing files in HDFS.
+     *
+     * return info of the bounding boxes in json format.
+     */
+    
+    public static String storeTrackletNew(@Nonnull String storeDir,
+                                          @Nonnull Tracklet tracklet,
+                                          @Nonnull FileSystem hdfs) throws Exception {
+        // Write the tracklet data to a file.
+        final FSDataOutputStream imgOutputStream = hdfs.create(new Path(storeDir + "/tracklet.data"));
+        BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(imgOutputStream));
+        // Length of a trajectory.
+        int trackLength = tracklet.locationSequence.length;
+        for (int ti = 0; ti < trackLength; ++ti) {
+            final Tracklet.BoundingBox bbox = tracklet.locationSequence[ti];
+            if (bbox.patchData != null) {
+                String base64String = Base64.encodeBase64String(bbox.patchData);
+                Map<String,String> trackletMap = new HashMap<String, String>();
+                trackletMap.put("idx", ""+ti);
+                trackletMap.put("x", ""+bbox.x);
+                trackletMap.put("y", ""+bbox.y);
+                trackletMap.put("width", ""+bbox.width);
+                trackletMap.put("height", ""+bbox.height);
+                trackletMap.put("data", base64String);
+                Gson gson = new Gson();
+                String json = gson.toJson(trackletMap);
+                bw.write(json);
+                bw.newLine();
+            }
+        }
+        bw.close();
+        imgOutputStream.close();
+
+        // Write serialized basic information of the tracklet to HDFS.
+        final FSDataOutputStream infoOutputStream = hdfs.create(new Path(storeDir + "/info.txt"));
+        // Customize the serialization of bounding box in order to ignore patch data.
+        final GsonBuilder gsonBuilder = new GsonBuilder();
+        final JsonSerializer<Tracklet.BoundingBox> bboxSerializer = (box, typeOfBox, context) -> {
+            JsonObject result = new JsonObject();
+            result.add("x", new JsonPrimitive(box.x));
+            result.add("y", new JsonPrimitive(box.y));
+            result.add("width", new JsonPrimitive(box.width));
+            result.add("height", new JsonPrimitive(box.height));
+            return result;
+        };
+        gsonBuilder.registerTypeAdapter(Tracklet.BoundingBox.class, bboxSerializer);
+        // Write serialized basic information of the tracklet to HDFS.
+        infoOutputStream.writeBytes(gsonBuilder.create().toJson(tracklet));
+        infoOutputStream.close();
+
+        return gsonBuilder.create().toJson(tracklet);
+    }
+
+    /**
+     * Retrieve a tracklet from the HDFS.
+     * Since a tracklet might be deleted from HDFS during reading,
+     * it is highly recommended to retry this function on failure,
+     * and the next time it will find the tracklet from HAR.
+     *
+     * @param storeDir the directory storing the tracklet (including only data of this tracklet).
+     * @return the track retrieved.
+     * @throws IOException        on failure of retrieving the tracklet.
+     * @throws URISyntaxException on syntax error detected in the storeDir.
+     */
+    @Nonnull
+    public static Tracklet retrieveTrackletNew(@Nonnull String storeDir,
+                                               @Nonnull FileSystem hdfs) throws IOException, URISyntaxException {
+        final InputStreamReader infoReader;
+        infoReader = new InputStreamReader(hdfs.open(new Path(storeDir + "/info.txt")));
+        FSDataInputStream imgInStream = hdfs.open(new Path(storeDir + "/tracklet.data"));
+        BufferedReader br = new BufferedReader(new InputStreamReader(imgInStream));
+
+        // Read verbal informations of the track.
+        Gson gson = new Gson();
+        Tracklet tracklet = gson.fromJson(infoReader, Tracklet.class);
+
+        // Read frames ...
+        String jsonData = null;
+        Map<Integer,String> trackletMap = new HashMap<Integer,String>();
+        JsonParser jParser = new JsonParser(); 
+        while ((jsonData = br.readLine()) != null) {
+            // TODO
+            JsonObject jObject = jParser.parse(jsonData).getAsJsonObject();
+            String idxString = jObject.get("idx").getAsString();
+            int idx = Integer.parseInt(idxString);
+            String dataBase64String = jObject.get("data").getAsString();
+            trackletMap.put(idx, dataBase64String);
+        }
+        br.close();
+        // Parse Data.
+        ContiguousSet.create(Range.closedOpen(0, tracklet.locationSequence.length), DiscreteDomain.integers())
+                .parallelStream()
+                .forEach(idx -> {
+                    Tracklet.BoundingBox bbox = tracklet.locationSequence[idx];
+                    boolean isSample = trackletMap.containsKey(idx);
+                    if (isSample) {
+                        String value = trackletMap.get(idx);
+                        //JsonObject jObject = jParser.parse(value).getAsJsonObject();
+                        //String dataBase64String = jObject.get("data").getAsString();
+                        //int w = Integer.parseInt(jObject.get("width").getAsString());
+                        //int h = Integer.parseInt(jObject.get("height").getAsString());
+                        //int c = 3;
+                        bbox.patchData = Base64.decodeBase64(value);
+                    }
+                });
+        
+        return tracklet;
+    }
+    
+    /**
+     * Retrieve a tracklet from the HDFS.
+     * Since a tracklet might be deleted from HDFS during reading,
+     * it is highly recommended to retry this function on failure,
+     * and the next time it will find the tracklet from HAR.
+     *
+     * @param storeDir the directory storing the tracklet (including only data of this tracklet).
+     * @return the track retrieved.
+     * @throws IOException        on failure of retrieving the tracklet.
+     * @throws URISyntaxException on syntax error detected in the storeDir.
+     */
+    @Nonnull
+    public static Tracklet retrieveTrackletNew(@Nonnull String storeDir) throws IOException, URISyntaxException {
+        return retrieveTrackletNew(storeDir, new HDFSFactory().produce());
     }
 }

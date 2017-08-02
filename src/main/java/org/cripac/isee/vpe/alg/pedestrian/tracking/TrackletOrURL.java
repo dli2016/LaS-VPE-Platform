@@ -77,6 +77,6 @@ public class TrackletOrURL implements Serializable {
 
     @Nonnull
     public Tracklet getTracklet() throws Exception {
-        return tracklet != null ? tracklet : HadoopHelper.retrieveTracklet(URL);
+        return tracklet != null ? tracklet : HadoopHelper.retrieveTrackletNew(URL); // Add new ... by da.li
     }
 }

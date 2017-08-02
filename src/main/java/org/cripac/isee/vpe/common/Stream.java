@@ -44,21 +44,23 @@ public abstract class Stream implements Serializable {
     private final Singleton<ByteArrayProducer> producerSingleton;
     private final boolean verbose;
 
+    // Modified by da.li  -->  Add userPlan (a string).
     protected void
     output(Collection<TaskData.ExecutionPlan.Node.Port> outputPorts,
            TaskData.ExecutionPlan executionPlan,
            Serializable result,
+           Serializable userPlan,
            UUID taskID) throws Exception {
         new RobustExecutor<Void, Void>(
                 () -> {
                     if (verbose) {
                         KafkaHelper.sendWithLog(taskID.toString(),
-                                new TaskData(outputPorts, executionPlan, result),
+                                new TaskData(outputPorts, executionPlan, result, userPlan),
                                 producerSingleton.getInst(),
                                 loggerSingleton.getInst());
                     } else {
                         KafkaHelper.send(taskID.toString(),
-                                new TaskData(outputPorts, executionPlan, result),
+                                new TaskData(outputPorts, executionPlan, result, userPlan),
                                 producerSingleton.getInst());
                     }
                 },

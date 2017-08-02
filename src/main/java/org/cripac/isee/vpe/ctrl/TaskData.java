@@ -52,6 +52,11 @@ public class TaskData implements Serializable, Cloneable {
     public final Serializable predecessorRes;
 
     /**
+     * Execute Plan of the user.
+     */
+    public final Serializable userPlan;
+
+    /**
      * Get the destination node which contains the given port.
      *
      * @param port the port of the node which is one of the destination nodes in this {@link TaskData}
@@ -89,7 +94,8 @@ public class TaskData implements Serializable, Cloneable {
      */
     public TaskData(@Nonnull Collection<ExecutionPlan.Node.Port> destPorts,
                     @Nonnull ExecutionPlan executionPlan) {
-        this(destPorts, executionPlan, null);
+        this(destPorts, executionPlan, null, null);
+        // Modified by da.li.
     }
 
     /**
@@ -100,7 +106,8 @@ public class TaskData implements Serializable, Cloneable {
      */
     public TaskData(@Nonnull ExecutionPlan.Node.Port destPort,
                     @Nonnull ExecutionPlan executionPlan) {
-        this(destPort, executionPlan, null);
+        this(destPort, executionPlan, null, null);
+        // Modified by da.li.
     }
 
     /**
@@ -114,7 +121,8 @@ public class TaskData implements Serializable, Cloneable {
     public TaskData(@Nonnull ExecutionPlan.Node.Port destPort,
                     @Nonnull ExecutionPlan executionPlan,
                     @Nullable Serializable predecessorRes) {
-        this(Collections.singleton(destPort), executionPlan, predecessorRes);
+        this(Collections.singleton(destPort), executionPlan, predecessorRes, null);
+        // Modified by da.li.
     }
 
     /**
@@ -139,6 +147,54 @@ public class TaskData implements Serializable, Cloneable {
         destPorts.forEach(port -> this.destPorts.put(port.prototype, port));
         this.executionPlan = executionPlan;
         this.predecessorRes = predecessorRes;
+        this.userPlan = null;                   // Modified by da.li.
+    }
+
+    /**
+     * Create a task an execution plan with predecessor resul.
+     * 
+     * @param destPorts      Destination ports of this TaskData.
+     * @param executionPlan  A global execution plan.
+     * @param predecessorRes Result of the predecessor node, 
+     *                       which is a serializable object.
+     * @param userPlan       Specify the algorithms.
+     * 
+     * Add by da.li.
+     */
+    public TaskData(@Nonnull ExecutionPlan.Node.Port destPort,
+                    @Nonnull ExecutionPlan executionPlan,
+                    @Nullable Serializable predecessorRes,
+                    @Nullable Serializable userPlan) {
+        this(Collections.singleton(destPort), executionPlan, predecessorRes, userPlan);
+    }
+    
+    /**
+     * Create a task an execution plan with predecessor resul.
+     *
+     * @param destPorts      Destination ports of this TaskData.
+     * @param executionPlan  A global execution plan.
+     * @param predecessorRes Result of the predecessor node,
+     *                       which is a serializable object.
+     * @param userPlan       Specify the algorithms.
+     *
+     * Add by da.li.
+     */ 
+    public TaskData(@Nonnull Collection<ExecutionPlan.Node.Port> destPorts,
+                    @Nonnull ExecutionPlan executionPlan,
+                    @Nullable Serializable predecessorRes,
+                    @Nullable Serializable userPlan) {
+        this.destPorts = new HashMap<>();
+        Optional<DataType> outputTypeOptional =
+                destPorts.stream().map(port -> port.prototype.inputType).reduce((dataType1, dataType2) -> {
+                    assert dataType1 == dataType2;
+                    return dataType1;
+                });
+        assert outputTypeOptional.isPresent();
+        outputType = outputTypeOptional.get();
+        destPorts.forEach(port -> this.destPorts.put(port.prototype, port));
+        this.executionPlan = executionPlan;
+        this.predecessorRes = predecessorRes;
+        this.userPlan = userPlan;
     }
 
     /*

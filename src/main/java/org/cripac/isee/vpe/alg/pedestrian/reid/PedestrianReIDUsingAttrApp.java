@@ -234,8 +234,8 @@ public class PedestrianReIDUsingAttrApp extends SparkStreamingApp {
                             // Mark the current node as executed in advance.
                             curNode.markExecuted();
 
-                            // Send to all the successor nodes.
-                            output(outputPorts, taskData.executionPlan, idRank, taskID);
+                            // Send to all the successor nodes. (Add userPlan by da.li)
+                            output(outputPorts, taskData.executionPlan, idRank, taskData.userPlan, taskID); 
                         } catch (Exception e) {
                             logger.error("During ReID", e);
                         }

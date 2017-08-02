@@ -41,13 +41,27 @@ public abstract class GraphDatabaseConnector {
                                                @Nonnull String path);
 
     /**
+     * Set tracklet information of a pedestrian.
+     *
+     * @param nodeID   new Singleton.
+     * @param dataType it depends on the execute plan (the algorithm to generate such result).
+     * @param trackletPath the path of the directory saving the tracklet of the pedestrian.
+     * @param trackletInfo bounding box information of a tracklet.
+     */
+    public abstract void setPedestrianTracklet(@Nonnull String nodeID,
+                                               @Nonnull String dataType,
+                                               @Nonnull String trackletPath,
+                                               @Nonnull String trackletInfo);
+
+    /**
      * Get the path of the directory saving the tracklet of a pedestrian.
      *
      * @param nodeID the id of the pedestrian.
      * @return the path of the directory saving the tracklet of the pedestrian.
      * @throws NoSuchElementException On failure finding the pedestrian.
      */
-    public abstract String getTrackletSavingDir(@Nonnull String nodeID) throws NoSuchElementException;
+    public abstract String getTrackletSavingDir(@Nonnull String nodeID,
+                                                @Nonnull String dataType) throws NoSuchElementException;
 
     /**
      * Set the similarity between two pedestrians.
@@ -75,29 +89,46 @@ public abstract class GraphDatabaseConnector {
     /**
      * Set the attributes of a pedestrian.
      *
-     * @param nodeID the ID of the pedestrian.
-     * @param attr   the attributes of the pedestrian.
+     * @param nodeID   the ID of the pedestrian.
+     * @param dataType it depends on the execute plan (the algorithm to generate such result).
+     * @param attr     the attributes of the pedestrian.
      */
     public abstract void setPedestrianAttributes(@Nonnull String nodeID,
+                                                 @Nonnull String dataType,
                                                  @Nonnull Attributes attr);
 
     /**
      * Set the reid feature of a pedestrian.
      * 
-     * @param nodeID the ID of the pedestrian.
-     * @param fea    the reid feature of the pedestrian.
+     * @param nodeID   the ID of the pedestrian.
+     * @param dataType it depends on the execute plan (the algorithm to generate such result).
+     * @param fea      the reid feature of the pedestrian.
      */
     public abstract void setPedestrianReIDFeature(@Nonnull String nodeID,
+                                                  @Nonnull String dataType,
                                                   @Nonnull Feature fea);
 
     /**
      * Get the attributes of a pedestrian.
      *
      * @param nodeID the ID of the pedestrian.
+     * @param dataType user plan.
      * @return the attributes of the pedestrian.
      * @throws NoSuchElementException On failure finding the pedestrian.
      */
-    public abstract Attributes getPedestrianAttributes(@Nonnull String nodeID) throws NoSuchElementException;
+    public abstract Attributes getPedestrianAttributes(@Nonnull String nodeID,
+                                                       @Nonnull String dataType) throws NoSuchElementException;
+
+    /**
+     * Get the reid feature of a pedestrian.
+     *
+     * @param nodeID the ID of the pedestrian.
+     * @param dataType user plan.
+     * @return the reid feature of the pedestrian.
+     * @throws NoSuchElementException On failure finding the pedestrian.
+     */
+    public abstract Feature getPedestrianReIDFeature(@Nonnull String nodeID,
+                                                     @Nonnull String dataType) throws NoSuchElementException;
 
     /**
      * Get relations: (nodA)-[SIMILARITY]-(nodeB)

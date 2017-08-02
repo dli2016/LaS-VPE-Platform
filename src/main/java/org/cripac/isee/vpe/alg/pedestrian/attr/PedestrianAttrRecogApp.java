@@ -227,7 +227,7 @@ public class PedestrianAttrRecogApp extends SparkStreamingApp {
                                 // Mark the current node as executed.
                                 curNode.markExecuted();
 
-                                output(outputPorts, taskData.executionPlan, attr, taskID);
+                                output(outputPorts, taskData.executionPlan, attr, taskData.userPlan, taskID);
                             } catch (Exception e) {
                                 logger.error("During processing attributes.", e);
                             }

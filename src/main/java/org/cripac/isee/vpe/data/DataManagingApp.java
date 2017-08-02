@@ -88,7 +88,8 @@ public class DataManagingApp extends SparkStreamingApp {
                 new TrackletSavingStream(propCenter),
                 new AttrSavingStream(propCenter),
                 new IDRankSavingStream(propCenter),
-                new VideoCuttingStream(propCenter)));
+                new VideoCuttingStream(propCenter),
+                new ReidFeatureSavingStream(propCenter)));
     }
 
     public static class AppPropertyCenter extends SystemPropertyCenter {
@@ -120,8 +121,8 @@ public class DataManagingApp extends SparkStreamingApp {
         AtomicReference<Boolean> running = new AtomicReference<>();
         running.set(true);
 
-        Thread packingThread = new Thread(new TrackletPackingThread(propCenter, running));
-        packingThread.start();
+        //Thread packingThread = new Thread(new TrackletPackingThread(propCenter, running));
+        //packingThread.start();
 
         final SparkStreamingApp app = new DataManagingApp(propCenter);
         app.initialize();
@@ -189,7 +190,8 @@ public class DataManagingApp extends SparkStreamingApp {
                                                 if (cnt > 0) {
                                                     Frame[] lastFragments = new Frame[cnt];
                                                     System.arraycopy(fragments, 0, lastFragments, 0, cnt);
-                                                    output(outputPorts, taskData.executionPlan, lastFragments, taskID);
+                                                    // output(outputPorts, taskData.executionPlan, lastFragments, taskID);
+                                                    output(outputPorts, taskData.executionPlan, lastFragments, null, taskID); // modified dli
                                                 }
                                                 break;
                                             }
@@ -197,14 +199,16 @@ public class DataManagingApp extends SparkStreamingApp {
                                                 if (cnt > 0) {
                                                     Frame[] lastFragments = new Frame[cnt];
                                                     System.arraycopy(fragments, 0, lastFragments, 0, cnt);
-                                                    output(outputPorts, taskData.executionPlan, lastFragments, taskID);
+                                                    //output(outputPorts, taskData.executionPlan, lastFragments, taskID);
+                                                    output(outputPorts, taskData.executionPlan, lastFragments, null, taskID); // modified dli
                                                 }
                                                 break;
                                             }
 
                                             fragments[cnt++] = frame;
                                             if (cnt >= maxFramePerFragment) {
-                                                output(outputPorts, taskData.executionPlan, fragments, taskID);
+                                                //output(outputPorts, taskData.executionPlan, fragments, taskID);
+                                                output(outputPorts, taskData.executionPlan, fragments, null, taskID); // modified dli
                                                 cnt = 0;
                                             }
                                         }
@@ -401,15 +405,19 @@ public class DataManagingApp extends SparkStreamingApp {
                 new Port("pedestrian-tracklet-saving", DataType.TRACKLET);
         private static final long serialVersionUID = 2820895755662980265L;
         private final String metadataDir;
-        private final Singleton<ByteArrayProducer> packingJobProducerSingleton;
+        private final Singleton<GraphDatabaseConnector> dbConnSingleton;  // Add by da.li
+        // private final Singleton<ByteArrayProducer> packingJobProducerSingleton;  // Modified by da.li
 
         TrackletSavingStream(@Nonnull AppPropertyCenter propCenter) throws Exception {
             super(APP_NAME, propCenter);
 
             metadataDir = propCenter.metadataDir;
-            packingJobProducerSingleton = new Singleton<>(
-                    new ByteArrayProducerFactory(propCenter.getKafkaProducerProp(false)),
-                    ByteArrayProducer.class);
+            // Modified by da.li
+            //packingJobProducerSingleton = new Singleton<>(
+            //        new ByteArrayProducerFactory(propCenter.getKafkaProducerProp(false)),
+            //        ByteArrayProducer.class);
+            dbConnSingleton = new Singleton<>(Neo4jConnector::new, Neo4jConnector.class);
+            //dbConnector = new Neo4jConnector();
         }
 
         /**
@@ -435,29 +443,55 @@ public class DataManagingApp extends SparkStreamingApp {
                                     final TrackletOrURL trackletOrURL = (TrackletOrURL) taskData.predecessorRes;
                                     final Tracklet tracklet = trackletOrURL.getTracklet();
                                     final int numTracklets = tracklet.numTracklets;
+                                    final String userPlan = (String) taskData.userPlan;
 
                                     if (trackletOrURL.isStored()) {
                                         // The tracklet has already been stored at HDFS.
-                                        logger.debug("Tracklet has already been stored at " + trackletOrURL.getURL()
-                                                + ". Skipping.");
-                                        return;
+                                        logger.debug("Tracklet has already been stored at " + trackletOrURL.getURL());
+                                        // TODO: Test following code on the system ...
+                                        // Insert the saving path to database.
+                                        new RobustExecutor<Void, Void>(() -> {
+                                            String trackletInfo = 
+                                                HadoopHelper.getTrackletInfo(trackletOrURL.getURL(), hdfs);
+                                            // Insert to database.
+                                            dbConnSingleton.getInst().setPedestrianTracklet(
+                                                tracklet.id.toString(),
+                                                userPlan,
+                                                trackletOrURL.getURL(),
+                                                trackletInfo
+                                            );
+                                        }).execute();
+                                        logger.debug("Saving DONE: " + trackletOrURL.getURL());
                                     } else {
                                         final String videoRoot = metadataDir + "/" + tracklet.id.videoID;
                                         final String taskRoot = videoRoot + "/" + taskID;
                                         final String storeDir = taskRoot + "/" + tracklet.id.serialNumber;
                                         final Path storePath = new Path(storeDir);
+                                        logger.debug("Storage Dir: " + storeDir);
                                         new RobustExecutor<Void, Void>(() -> {
                                             if (hdfs.exists(storePath)
                                                     || hdfs.exists(new Path(videoRoot + "/" + taskID + ".har"))) {
                                                 logger.warn("Duplicated storing request for " + tracklet.id);
                                             } else {
                                                 hdfs.mkdirs(new Path(storeDir));
-                                                HadoopHelper.storeTracklet(storeDir, tracklet, hdfs);
+                                                //HadoopHelper.storeTracklet(storeDir, tracklet, hdfs);
+                                                String trackletInfo = HadoopHelper.storeTrackletNew(
+                                                    storeDir,
+                                                    tracklet,
+                                                    hdfs
+                                                );
+                                                dbConnSingleton.getInst().setPedestrianTracklet(
+                                                    tracklet.id.toString(),
+                                                    userPlan,
+                                                    storeDir,
+                                                    trackletInfo
+                                                );
                                             }
                                         }).execute();
                                     }
 
-                                    // Check packing.
+                                    // Check packing. Commented by da.li 20170703
+                                    /*
                                     new RobustExecutor<Void, Void>(() ->
                                             KafkaHelper.sendWithLog(TrackletPackingThread.JOB_TOPIC,
                                                     taskID.toString(),
@@ -465,6 +499,7 @@ public class DataManagingApp extends SparkStreamingApp {
                                                     packingJobProducerSingleton.getInst(),
                                                     logger)
                                     ).execute();
+                                    */
                                     hdfs.close();
                                 } catch (Exception e) {
                                     logger.error("During storing tracklets.", e);
@@ -491,7 +526,8 @@ public class DataManagingApp extends SparkStreamingApp {
         AttrSavingStream(@Nonnull AppPropertyCenter propCenter) throws Exception {
             super(APP_NAME, propCenter);
 
-            dbConnSingleton = new Singleton<>(FakeDatabaseConnector::new, FakeDatabaseConnector.class);
+            //dbConnSingleton = new Singleton<>(FakeDatabaseConnector::new, FakeDatabaseConnector.class);
+            dbConnSingleton = new Singleton<>(Neo4jConnector::new, Neo4jConnector.class);
         }
 
         /**
@@ -514,11 +550,13 @@ public class DataManagingApp extends SparkStreamingApp {
                                 try {
                                     final TaskData taskData = res._2();
                                     final Attributes attr = (Attributes) taskData.predecessorRes;
+                                    final String userPlan = (String) taskData.userPlan;
 
                                     logger.debug("Received " + res._1() + ": " + attr);
 
                                     new RobustExecutor<Void, Void>(() ->
-                                            dbConnSingleton.getInst().setPedestrianAttributes(attr.trackletID.toString(), attr)
+                                            dbConnSingleton.getInst().setPedestrianAttributes(
+                                                attr.trackletID.toString(), userPlan, attr)
                                     ).execute();
 
                                     logger.debug("Saved " + res._1() + ": " + attr);
@@ -551,7 +589,8 @@ public class DataManagingApp extends SparkStreamingApp {
         public ReidFeatureSavingStream(@Nonnull AppPropertyCenter propCenter) throws Exception {
             super(APP_NAME, propCenter);
 
-            dbConnSingleton = new Singleton<>(FakeDatabaseConnector::new, FakeDatabaseConnector.class);
+            //dbConnSingleton = new Singleton<>(FakeDatabaseConnector::new, FakeDatabaseConnector.class);
+            dbConnSingleton = new Singleton<>(Neo4jConnector::new, Neo4jConnector.class);
         }
 
         @Override
@@ -564,10 +603,12 @@ public class DataManagingApp extends SparkStreamingApp {
                         try {
                             final TaskData taskData = res._2();
                             final Feature fea = (Feature) taskData.predecessorRes;
+                            final String userPlan = (String) taskData.userPlan;
                             logger.debug("Received " + res._1() + ": " + fea.trackletID.toString());
                             // TODO: insert the recieved reid feature to db.
                             new RobustExecutor<Void, Void>(() ->
-                                dbConnSingleton.getInst().setPedestrianReIDFeature(fea.trackletID.toString(), fea)
+                                dbConnSingleton.getInst().setPedestrianReIDFeature(
+                                    fea.trackletID.toString(), userPlan, fea)
                             ).execute();
                             logger.debug("Saved " + res._1() + ": " + fea.trackletID.toString());
                         } catch(Exception e) {

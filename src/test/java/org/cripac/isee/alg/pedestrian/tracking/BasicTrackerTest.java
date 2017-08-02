@@ -33,7 +33,7 @@ import java.io.InputStream;
 public class BasicTrackerTest {
     @Test
     public void initialize() throws Exception {
-        System.out.println("Performing memory leak test...");
+        System.out.println("Performing memory leak test (BASIC TRACKER)...");
 
         byte[] conf = IOUtils.toByteArray(new FileInputStream(
                 "conf/" + PedestrianTrackingApp.APP_NAME + "/isee-basic/CAM01_0.conf"));
@@ -44,22 +44,23 @@ public class BasicTrackerTest {
 
     @Test
     public void track() throws Exception {
-        System.out.println("Performing validness test...");
+        String trackerMethod = "BASIC-TRACKER: ";
+        System.out.println(trackerMethod + "Performing validness test...");
 
-        System.out.println("Reading video...");
+        System.out.println(trackerMethod + "Reading video...");
         InputStream videoStream = new FileInputStream("src/test/resources/20131220184349-20131220184937.h264");
 
-        System.out.println("Native library path: " + System.getProperty("java.library.path"));
-        System.out.println("Creating tracker...");
+        System.out.println(trackerMethod + "Native library path: " + System.getProperty("java.library.path"));
+        System.out.println(trackerMethod + "Creating tracker...");
         BasicTracker tracker = new BasicTracker(
                 IOUtils.toByteArray(new FileInputStream(
                         "conf/" + PedestrianTrackingApp.APP_NAME + "/isee-basic/CAM01_0.conf")),
                 new ConsoleLogger(Level.DEBUG));
 
-        System.out.println("Start tracking...");
+        System.out.println(trackerMethod + "Start tracking...");
         Tracklet[] tracklets = tracker.track(videoStream);
 
-        System.out.println("Tracked " + tracklets.length + " pedestrians!");
+        System.out.println(trackerMethod + "Tracked " + tracklets.length + " pedestrians!");
 
         Assert.assertEquals(2, tracklets.length);
         Assert.assertEquals(3495, tracklets[0].startFrameIndex);
