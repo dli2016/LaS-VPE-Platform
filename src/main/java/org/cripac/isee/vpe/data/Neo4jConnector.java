@@ -206,7 +206,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
         //                 + "(cost-get-boundingbox:" + (t4-t3) +")");        
 
         // Insert Node.
-        session.run("MERGE (p:Person {tracklet_id: {id}, dataType: {dataType}}) SET " 
+        session.run("MERGE (p:Person {trackletID: {id}, dataType: {dataType}}) SET " 
                   + "p.path={path}, "
                   + "p.startTime=toint({startTime}), "
                   + "p.startIndex={startIndex}, "
@@ -253,7 +253,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
                                        @Nonnull String dataType) throws NoSuchElementException {
         // Return path of an existing node, otherwise, return nothing.
         Session session = driver.session();
-        StatementResult result = session.run("MATCH (p:Person {tracklet_id: {id}, dataType: {dataType}}) RETURN p.path;",
+        StatementResult result = session.run("MATCH (p:Person {trackletID: {id}, dataType: {dataType}}) RETURN p.path;",
                 Values.parameters("id", nodeID, "dataType", dataType));
         session.close();
         if (result.hasNext()) {
@@ -271,7 +271,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
         // If one of idA and idB does not exist, do nothing.
         // If relationship already exists, change the value; Otherwise, create a relationship and set the value.
         Session session = driver.session();
-        session.run("MATCH (p1:Person {tracklet_id: {id1}}), (p2:Person {tracklet_id: {id2}}) " +
+        session.run("MATCH (p1:Person {trackletID: {id1}}), (p2:Person {trackletID: {id2}}) " +
                         "MERGE (p1)-[s:Similar]->(p2) " +
                         "SET s.similarity={sim};",
                 Values.parameters("id1", idA, "id2", idB, "sim", similarity));
@@ -282,7 +282,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
     public float getPedestrianSimilarity(@Nonnull String idA, @Nonnull String idB) throws NoSuchElementException {
         // Match the whole pattern and return the similarity, if the pattern exists.
         Session session = driver.session();
-        StatementResult result = session.run("MATCH (p1:Person {tracklet_id: {id1}})-[s:Similar]->(p2:Person {tracklet_id: {id2}}) " +
+        StatementResult result = session.run("MATCH (p1:Person {trackletID: {id1}})-[s:Similar]->(p2:Person {trackletID: {id2}}) " +
                         "RETURN s.similarity;",
                 Values.parameters("id1", idA, "id2", idB));
         session.close();
@@ -302,7 +302,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
         Session session = driver.session();
         byte[] feature = fea.getBytes();
         String feaStringBase64 = Base64.encodeBase64String(feature);
-        session.run("MERGE (p:Person {tracklet_id: {id}, dataType: {dataType}}) SET "
+        session.run("MERGE (p:Person {trackletID: {id}, dataType: {dataType}}) SET "
                   + "p.reidFeature={reidFeature}, "
                   + "p.isFinish={isFinish}, "
                   + "p.isGetSim={isGetSim};",
@@ -319,7 +319,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
                                             @Nonnull String dataType) throws NoSuchElementException {
         Session session = driver.session();
         StatementResult result = session.run(
-            "MATCH (p:Person {tracklet_id: {id}, dataType: {dataType}}) RETURN p.reidFeature;",
+            "MATCH (p:Person {trackletID: {id}, dataType: {dataType}}) RETURN p.reidFeature;",
             Values.parameters("id", nodeID, "dataType", dataType)
         );
         session.close();
@@ -339,7 +339,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
                                         @Nonnull Attributes attr) {
         // Set attributes to an existing node or one newly created.
         Session session = driver.session();
-        session.run("MERGE (p:Person {tracklet_id: {id}, dataType: {dataType}}) SET "
+        session.run("MERGE (p:Person {trackletID: {id}, dataType: {dataType}}) SET "
                         + "p.genderMale = {genderMale}, "
                         + "p.genderFemale = {genderFemale}, "
                         + "p.genderOther = {genderOther}, "
@@ -602,7 +602,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
                                               @Nonnull String dataType) throws NoSuchElementException {
         // Return attributes of an existing node, otherwise, return nothing.
         Session session = driver.session();
-        StatementResult result = session.run("MATCH (p:Person {tracklet_id: {id}, dataType: {dataType}}) RETURN "
+        StatementResult result = session.run("MATCH (p:Person {trackletID: {id}, dataType: {dataType}}) RETURN "
                         + "p.genderMale, "
                         + "p.genderFemale, "
                         + "p.genderOther, "
