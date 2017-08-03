@@ -232,7 +232,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
         "(mon:Month {month: toint({month})})-[:HAS_DAY]->(d:Day {day: toint({day})})-[:HAS_HOUR]->" +
         "(h:Hour {hour: toint({hour})})-[:HAS_MIN]->(min) WHERE toint(tostring(min.start)+'00')<=" +
         "toint({trackletStartTime}) AND toint({trackletStartTime})<=toint(tostring(min.end)+'59') " +
-        "MATCH (p:Person {id: {id}, dataType: {dataType}}) MERGE (min)-[:INCLUDES_PERSON]->(p);";
+        "MATCH (p:Person {trackletID: {id}, dataType: {dataType}}) MERGE (min)-[:INCLUDES_PERSON]->(p);";
         session.run(run, Values.parameters(
             "year", queryYear,
             "month",queryMon,
@@ -871,7 +871,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
     public Link[] getLinkedPedestrians(@Nonnull String nodeID) throws NoSuchElementException {
         // Match the whole pattern and, return the number of matches.
         Session session = driver.session();
-        StatementResult result = session.run("MATCH (p1:Person {id: {id}})-[s:Similar]->(p2:Person) RETURN count(*) AS num;", Values.parameters("id", nodeID));
+        StatementResult result = session.run("MATCH (p1:Person {trackletID: {id}})-[s:Similar]->(p2:Person) RETURN count(*) AS num;", Values.parameters("id", nodeID));
         session.close();
 
         int num = 0;
@@ -886,7 +886,7 @@ public class Neo4jConnector extends GraphDatabaseConnector {
 
         // Match the whole pattern and, return the other node and the similarity for each match.
         // Results are sorted in descending order.
-        result = session.run("MATCH (p1:Person {id: {id}})-[s:Similar]->(p2:Person) " +
+        result = session.run("MATCH (p1:Person {trackletID: {id}})-[s:Similar]->(p2:Person) " +
                         "WITH s.similarity AS sim, p2.id AS id2 ORDER BY sim DESC RETURN sim, id2;",
                 Values.parameters("id", nodeID));
         int i = 0;
